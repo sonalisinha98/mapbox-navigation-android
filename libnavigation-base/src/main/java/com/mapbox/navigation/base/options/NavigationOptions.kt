@@ -9,6 +9,15 @@ import com.mapbox.navigation.base.typedef.TimeFormatType
 const val DEFAULT_NAVIGATOR_POLLING_DELAY = 1500L
 const val DEFAULT_FASTER_ROUTE_DETECTOR_INTERVAL = 2 * 60 * 1000L // 2 minutes
 
+/**
+ * Defines navigation options
+ *
+ * @param roundingIncrement defines threshold in meters for determination is user off the route
+ * @param timeFormatType defines time format for calculation remaining trip time
+ * @param navigatorPollingDelay defines how often we will request navigation status updates
+ * @param distanceFormatter [DistanceFormatter] for format distances showing in notification during navigation
+ * @param onboardRouterConfig [MapboxOnboardRouterConfig] defines configuration for on-board router
+ */
 data class NavigationOptions constructor(
     @RoundingIncrement val roundingIncrement: Int,
     @TimeFormatType val timeFormatType: Int,

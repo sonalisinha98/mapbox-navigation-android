@@ -42,75 +42,55 @@ class RouteUrl(
 
         /**
          * Mapbox default username.
-         *
-         * @since 1.0
          */
         const val PROFILE_DEFAULT_USER = "mapbox"
         /**
          * For car and motorcycle routing. This profile factors in current and historic traffic
          * conditions to avoid slowdowns.
-         *
-         * @since 1.0
          */
         const val PROFILE_DRIVING_TRAFFIC = "driving-traffic"
 
         /**
          * For car and motorcycle routing. This profile shows the fastest routes by preferring
          * high-speed roads like highways.
-         *
-         * @since 1.0
          */
         const val PROFILE_DRIVING = "driving"
 
         /**
          * For pedestrian and hiking routing. This profile shows the shortest path by using sidewalks
          * and trails.
-         *
-         * @since 1.0
          */
         const val PROFILE_WALKING = "walking"
 
         /**
          * For bicycle routing. This profile shows routes that are short and safe for cyclist, avoiding
          * highways and preferring streets with bike lanes.
-         *
-         * @since 1.0
          */
         const val PROFILE_CYCLING = "cycling"
 
         /**
          * Format to return route geometry will be an encoded polyline.
-         *
-         * @since 1.0
          */
         const val GEOMETRY_POLYLINE = "polyline"
 
         /**
          * Format to return route geometry will be an encoded polyline with precision 6.
-         *
-         * @since 1.0
          */
         const val GEOMETRY_POLYLINE6 = "polyline6"
 
         /**
          * A simplified version of the [.OVERVIEW_FULL] geometry. If not specified simplified is
          * the default.
-         *
-         * @since 1.0
          */
         const val OVERVIEW_SIMPLIFIED = "simplified"
 
         /**
          * The most detailed geometry available.
-         *
-         * @since 1.0
          */
         const val OVERVIEW_FULL = "full"
 
         /**
          * No overview geometry.
-         *
-         * @since 1.0
          */
         const val OVERVIEW_FALSE = "false"
     }

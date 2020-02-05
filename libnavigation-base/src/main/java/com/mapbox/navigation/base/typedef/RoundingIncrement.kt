@@ -8,6 +8,9 @@ const val ROUNDING_INCREMENT_TWENTY_FIVE = 25
 const val ROUNDING_INCREMENT_FIFTY = 50
 const val ROUNDING_INCREMENT_ONE_HUNDRED = 100
 
+/**
+ * Defines threshold in meters for determination is user off the route
+ */
 @Retention(AnnotationRetention.SOURCE)
 @IntDef(
     ROUNDING_INCREMENT_FIVE,
