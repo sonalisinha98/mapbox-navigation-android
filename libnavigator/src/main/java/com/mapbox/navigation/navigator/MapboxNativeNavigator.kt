@@ -14,7 +14,7 @@ import com.mapbox.navigator.VoiceInstruction
 import java.util.Date
 
 /**
- * Provides API to work with native Navigator class.
+ * Provides API to work with native Navigator class. Exposed for internal usage only.
  */
 interface MapboxNativeNavigator {
 
@@ -236,7 +236,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Gets the voice instruction at a specific step index in the route. If there is no
-     * voice instruction at the specified index, we will do something.
+     * voice instruction at the specified index, we won't return anything.
      *
      * @param index Which step you want to get [VoiceInstruction] for
      *
