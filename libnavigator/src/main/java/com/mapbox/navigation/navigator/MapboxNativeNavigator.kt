@@ -143,6 +143,9 @@ interface MapboxNativeNavigator {
 
     // Offline
 
+    /**
+     * Caches tiles around last set route
+     */
     fun cacheLastRoute()
 
     /**
