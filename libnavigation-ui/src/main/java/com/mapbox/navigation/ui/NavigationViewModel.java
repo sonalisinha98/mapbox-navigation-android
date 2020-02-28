@@ -4,30 +4,42 @@ import android.annotation.SuppressLint;
 import android.app.Application;
 import android.content.Context;
 import android.location.Location;
+import android.os.Environment;
 import android.text.TextUtils;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-
 import com.mapbox.android.core.location.LocationEngine;
+import com.mapbox.android.core.location.LocationEngineCallback;
+import com.mapbox.android.core.location.LocationEngineResult;
 import com.mapbox.api.directions.v5.models.BannerInstructions;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.api.directions.v5.models.RouteOptions;
 import com.mapbox.api.directions.v5.models.VoiceInstructions;
 import com.mapbox.geojson.Point;
+import com.mapbox.geojson.utils.PolylineUtils;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.offline.OfflineManager;
 import com.mapbox.navigation.base.formatter.DistanceFormatter;
+import com.mapbox.navigation.base.options.MapboxOnboardRouterConfig;
 import com.mapbox.navigation.base.options.NavigationOptions;
+import com.mapbox.navigation.base.route.Router;
 import com.mapbox.navigation.base.trip.model.RouteProgress;
 import com.mapbox.navigation.base.typedef.TimeFormatType;
 import com.mapbox.navigation.core.MapboxDistanceFormatter;
 import com.mapbox.navigation.core.MapboxNavigation;
+import com.mapbox.navigation.core.accounts.MapboxNavigationAccounts;
+import com.mapbox.navigation.core.location.ReplayRouteLocationEngine;
+import com.mapbox.navigation.core.trip.session.BannerInstructionsObserver;
 import com.mapbox.navigation.core.directions.session.RoutesObserver;
 import com.mapbox.navigation.core.trip.session.OffRouteObserver;
 import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver;
+import com.mapbox.navigation.navigator.MapboxNativeNavigatorImpl;
+import com.mapbox.navigation.route.hybrid.MapboxHybridRouter;
+import com.mapbox.navigation.route.offboard.MapboxOffboardRouter;
+import com.mapbox.navigation.route.onboard.MapboxOnboardRouter;
 import com.mapbox.navigation.ui.camera.Camera;
 import com.mapbox.navigation.ui.camera.DynamicCamera;
 import com.mapbox.navigation.ui.feedback.FeedbackItem;
@@ -42,15 +54,19 @@ import com.mapbox.navigation.ui.voice.SpeechPlayer;
 import com.mapbox.navigation.ui.voice.SpeechPlayerProvider;
 import com.mapbox.navigation.ui.voice.VoiceInstructionLoader;
 import com.mapbox.navigation.utils.extensions.ContextEx;
-
+import com.mapbox.navigation.utils.network.NetworkStatusService;
+import okhttp3.Cache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.TestOnly;
+import timber.log.Timber;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
-
-import okhttp3.Cache;
+import java.util.List;
 
 public class NavigationViewModel extends AndroidViewModel {
 
@@ -67,6 +83,8 @@ public class NavigationViewModel extends AndroidViewModel {
   private final MutableLiveData<DirectionsRoute> route = new MutableLiveData<>();
   private final MutableLiveData<Boolean> shouldRecordScreenshot = new MutableLiveData<>();
   private final MutableLiveData<Point> destination = new MutableLiveData<>();
+  private final MutableLiveData<Location> locationUpdates = new MutableLiveData<>();
+  private final MutableLiveData<RouteProgress> routeProgressUpdates = new MutableLiveData<>();
 
   private MapboxNavigation navigation;
   private LocationEngineConductor locationEngineConductor;
@@ -89,7 +107,8 @@ public class NavigationViewModel extends AndroidViewModel {
   private MapConnectivityController connectivityController;
   private MapOfflineManager mapOfflineManager;
   private NavigationViewModelProgressObserver navigationProgressObserver =
-    new NavigationViewModelProgressObserver(this);
+      new NavigationViewModelProgressObserver(this);
+  private Router router;
 
   private NavigationViewOptions navigationViewOptions;
 
@@ -97,23 +116,22 @@ public class NavigationViewModel extends AndroidViewModel {
     super(application);
     this.accessToken = Mapbox.getAccessToken();
     initializeLocationEngine();
+    initializeRouter();
     this.routeUtils = new RouteUtils();
     this.connectivityController = new MapConnectivityController();
   }
 
-  @TestOnly
-  NavigationViewModel(Application application, MapboxNavigation navigation,
-                      MapConnectivityController connectivityController, MapOfflineManager mapOfflineManager) {
+  @TestOnly NavigationViewModel(Application application, MapboxNavigation navigation,
+      MapConnectivityController connectivityController, MapOfflineManager mapOfflineManager) {
     super(application);
     this.navigation = navigation;
     this.connectivityController = connectivityController;
     this.mapOfflineManager = mapOfflineManager;
   }
 
-  @TestOnly
-  NavigationViewModel(Application application, MapboxNavigation navigation,
-                      LocationEngineConductor conductor, NavigationViewEventDispatcher dispatcher,
-                      VoiceInstructionCache cache, SpeechPlayer speechPlayer) {
+  @TestOnly NavigationViewModel(Application application, MapboxNavigation navigation,
+      LocationEngineConductor conductor, NavigationViewEventDispatcher dispatcher,
+      VoiceInstructionCache cache, SpeechPlayer speechPlayer) {
     super(application);
     this.navigation = navigation;
     this.locationEngineConductor = conductor;
@@ -207,11 +225,14 @@ public class NavigationViewModel extends AndroidViewModel {
    */
   @SuppressLint("MissingPermission")
   void initialize(NavigationViewOptions options) {
-    NavigationOptions navigationOptions = options.navigationOptions();
-    navigationOptions = navigationOptions.toBuilder().build();
     initializeLanguage(options);
-    initializeTimeFormat(navigationOptions);
     initializeDistanceFormatter(options);
+    NavigationOptions navigationOptions = options.navigationOptions();
+    navigationOptions = navigationOptions.toBuilder()
+        .onboardRouterConfig(buildMapboxOnboardRouterConfig())
+        .distanceFormatter(distanceFormatter)
+        .build();
+    initializeTimeFormat(navigationOptions);
     if (!isRunning()) {
       LocationEngine locationEngine = initializeLocationEngineFrom(options);
       initializeNavigation(getApplication(), navigationOptions, locationEngine);
@@ -248,6 +269,7 @@ public class NavigationViewModel extends AndroidViewModel {
     navigation.unregisterRouteProgressObserver(navigationProgressObserver);
     navigation.unregisterLocationObserver(navigationProgressObserver);
     navigation.unregisterOffRouteObserver(offRouteObserver);
+    navigation.unregisterBannerInstructionsObserver(bannerInstructionsObserver);
     navigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver);
     navigation.unregisterRoutesObserver(routesObserver);
     navigation.stopTripSession();
@@ -277,16 +299,25 @@ public class NavigationViewModel extends AndroidViewModel {
     this.routeProgress = routeProgress;
     sendEventArrival(routeProgress);
     if (routeUtils.deviceCloseEnoughToFinalDestination(routeProgress,
-      navigationViewOptions.maxMetersToTriggerDestinationArrival())) {
+        navigationViewOptions.maxMetersToTriggerDestinationArrival())) {
       sendEventFinalDestinationArrival();
     }
     instructionModel.setValue(new InstructionModel(distanceFormatter, routeProgress));
     summaryModel.setValue(new SummaryModel(getApplication(), distanceFormatter, routeProgress, timeFormatType));
     routeJunctionModel.setValue(new RouteJunctionModel(routeProgress));
+    routeProgressUpdates.setValue(routeProgress);
   }
 
   void updateLocation(Location location) {
     navigationLocation.setValue(location);
+  }
+
+  private void updateBannerInstruction(BannerInstructions bannerInstructions) {
+    BannerInstructions instructions = retrieveInstructionsFromBannerEvent(bannerInstructions);
+    if (instructions != null) {
+      BannerInstructionModel model = new BannerInstructionModel(distanceFormatter, routeProgress, instructions);
+      bannerInstructionModel.setValue(model);
+    }
   }
 
   void sendEventFailedReroute(String errorMessage) {
@@ -295,20 +326,56 @@ public class NavigationViewModel extends AndroidViewModel {
     }
   }
 
-  MutableLiveData<Location> retrieveNavigationLocation() {
+  LiveData<Location> retrieveNavigationLocation() {
     return navigationLocation;
   }
 
-  MutableLiveData<DirectionsRoute> retrieveRoute() {
+  LiveData<DirectionsRoute> retrieveRoute() {
     return route;
   }
 
-  MutableLiveData<Point> retrieveDestination() {
+  LiveData<Point> retrieveDestination() {
     return destination;
   }
 
-  MutableLiveData<Boolean> retrieveShouldRecordScreenshot() {
+  LiveData<Boolean> retrieveShouldRecordScreenshot() {
     return shouldRecordScreenshot;
+  }
+
+  LiveData<Location> retrieveLocationUdpates() {
+    return locationUpdates;
+  }
+
+  LiveData<RouteProgress> retrieveRouteProgressUpdates() {
+    return routeProgressUpdates;
+  }
+
+  public LiveData<InstructionModel> retrieveInstructionModel() {
+    return instructionModel;
+  }
+
+  public LiveData<BannerInstructionModel> retrieveBannerInstructionModel() {
+    return bannerInstructionModel;
+  }
+
+  public LiveData<Boolean> retrieveIsOffRoute() {
+    return isOffRoute;
+  }
+
+  public LiveData<SummaryModel> retrieveSummaryModel() {
+    return summaryModel;
+  }
+
+  private void initializeRouter() {
+    final Context context = getApplication().getApplicationContext();
+    final MapboxOffboardRouter offboardRouter = new MapboxOffboardRouter(
+        accessToken, context,
+        MapboxNavigationAccounts.getInstance(context)
+    );
+    final MapboxOnboardRouterConfig onboardRouterConfig = buildMapboxOnboardRouterConfig();
+    final MapboxOnboardRouter onboardRouter =
+        new MapboxOnboardRouter(MapboxNativeNavigatorImpl.INSTANCE, onboardRouterConfig);
+    router = new MapboxHybridRouter(onboardRouter, offboardRouter, new NetworkStatusService(context));
   }
 
   private void initializeLocationEngine() {
@@ -371,13 +438,13 @@ public class NavigationViewModel extends AndroidViewModel {
     OfflineMetadataProvider metadataProvider = new OfflineMetadataProvider();
     RegionDownloadCallback regionDownloadCallback = new RegionDownloadCallback(connectivityController);
     mapOfflineManager = new MapOfflineManager(offlineManager, definitionProvider, metadataProvider,
-      connectivityController, regionDownloadCallback);
+        connectivityController, regionDownloadCallback);
     navigation.registerRouteProgressObserver(mapOfflineManager);
   }
 
   private void initializeVoiceInstructionLoader() {
     Cache cache = new Cache(new File(getApplication().getCacheDir(), OKHTTP_INSTRUCTION_CACHE),
-      TEN_MEGABYTE_CACHE_SIZE);
+        TEN_MEGABYTE_CACHE_SIZE);
     voiceInstructionLoader = new VoiceInstructionLoader(getApplication(), accessToken, cache);
   }
 
@@ -391,11 +458,18 @@ public class NavigationViewModel extends AndroidViewModel {
     return new SpeechPlayerProvider(getApplication(), language, voiceLanguageSupported, voiceInstructionLoader);
   }
 
-  private LocationEngine initializeLocationEngineFrom(NavigationViewOptions options) {
-    LocationEngine locationEngine = options.locationEngine();
-    boolean shouldReplayRoute = options.shouldSimulateRoute();
+  private LocationEngine initializeLocationEngineFrom(final NavigationViewOptions options) {
+    final LocationEngine locationEngine = options.locationEngine();
+    final boolean shouldReplayRoute = options.shouldSimulateRoute();
     locationEngineConductor.initializeLocationEngine(getApplication(), locationEngine, shouldReplayRoute);
-    return locationEngineConductor.obtainLocationEngine();
+
+    final LocationEngine locationEngineToReturn = locationEngineConductor.obtainLocationEngine();
+    if (locationEngineToReturn instanceof ReplayRouteLocationEngine) {
+      final Point lastLocation = getOriginOfRoute(options.directionsRoute());
+      ((ReplayRouteLocationEngine) locationEngineToReturn).assignLastLocation(lastLocation);
+      ((ReplayRouteLocationEngine) locationEngineToReturn).assign(options.directionsRoute());
+    }
+    return locationEngineToReturn;
   }
 
   private void initializeNavigation(Context context, NavigationOptions options, LocationEngine locationEngine) {
@@ -407,6 +481,7 @@ public class NavigationViewModel extends AndroidViewModel {
     navigation.registerRouteProgressObserver(navigationProgressObserver);
     navigation.registerLocationObserver(navigationProgressObserver);
     navigation.registerOffRouteObserver(offRouteObserver);
+    navigation.registerBannerInstructionsObserver(bannerInstructionsObserver);
     navigation.registerVoiceInstructionsObserver(voiceInstructionsObserver);
     navigation.registerRoutesObserver(routesObserver);
     // navigation.addFasterRouteListener(fasterRouteListener); TODO waiting for implementation
@@ -427,15 +502,29 @@ public class NavigationViewModel extends AndroidViewModel {
     public void onOffRouteStateChanged(boolean offRoute) {
       if (offRoute) {
         speechPlayer.onOffRoute();
+        locationEngineConductor.obtainLocationEngine()
+            .getLastLocation(new LocationEngineCallback<LocationEngineResult>() {
+              @Override
+              public void onSuccess(LocationEngineResult result) {
+                handleOffRouteEvent(
+                    Point.fromLngLat(result.getLastLocation().getLongitude(), result.getLastLocation().getLatitude()));
+              }
+
+              @Override
+              public void onFailure(@NonNull Exception exception) {
+                // todo
+              }
+            });
       }
+      isOffRoute.setValue(offRoute);
     }
+  };
 
-    /*@Override
-    public void userOffRoute(Location location) {
-
-      Point newOrigin = Point.fromLngLat(location.getLongitude(), location.getLatitude());
-      handleOffRouteEvent(newOrigin);
-    }*/
+  private BannerInstructionsObserver bannerInstructionsObserver = new BannerInstructionsObserver() {
+    @Override
+    public void onNewBannerInstructions(@NotNull BannerInstructions bannerInstructions) {
+      updateBannerInstruction(bannerInstructions);
+    }
   };
 
   // TODO Faster route
@@ -520,8 +609,39 @@ public class NavigationViewModel extends AndroidViewModel {
   private void handleOffRouteEvent(Point newOrigin) {
     if (navigationViewEventDispatcher != null && navigationViewEventDispatcher.allowRerouteFrom(newOrigin)) {
       navigationViewEventDispatcher.onOffRoute(newOrigin);
-      // route.findRouteFrom(routeProgress)
-      isOffRoute.setValue(true);
+
+      final List<Point> previousCoordinates =
+          this.navigationViewOptions.directionsRoute().routeOptions().coordinates();
+      final List<Point> newCoordinates = new ArrayList<>();
+      newCoordinates.add(newOrigin);
+      newCoordinates.add(previousCoordinates.get(1));
+
+      final RouteOptions updatedOptions = this.navigationViewOptions.directionsRoute()
+          .routeOptions()
+          .toBuilder()
+          .coordinates(newCoordinates).build();
+
+      router.getRoute(
+          updatedOptions,
+          new Router.Callback() {
+            @Override
+            public void onResponse(@NotNull List<? extends DirectionsRoute> routes) {
+              navigation.setRoutes(routes);
+              route.setValue(routes.get(0));
+            }
+
+            @Override
+            public void onFailure(@NotNull Throwable throwable) {
+              Timber.e(throwable);
+              // todo
+            }
+
+            @Override
+            public void onCanceled() {
+              // todo
+            }
+          }
+      );
     }
   }
 
@@ -560,5 +680,25 @@ public class NavigationViewModel extends AndroidViewModel {
       instructions = navigationViewEventDispatcher.onBannerDisplay(instructions);
     }
     return instructions;
+  }
+
+  private MapboxOnboardRouterConfig buildMapboxOnboardRouterConfig() {
+    final SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM__dd_HH_mm__ss");
+    final String dateString = sdf.format(new Date());
+    final File file = new File(
+        Environment.getExternalStoragePublicDirectory("Offline").getAbsolutePath(),
+        dateString);
+    final File fileTiles = new File(file, "tiles");
+    return new MapboxOnboardRouterConfig(
+        fileTiles.getAbsolutePath(),
+        null,
+        null,
+        null,
+        null // working with pre-fetched tiles only
+    );
+  }
+
+  private Point getOriginOfRoute(final DirectionsRoute directionsRoute) {
+    return PolylineUtils.decode(directionsRoute.geometry(), 6).get(0);
   }
 }
