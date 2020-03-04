@@ -5,6 +5,7 @@ import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
 import android.hardware.SensorEvent
 import android.location.Location
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.mapbox.android.core.location.LocationEngine
 import com.mapbox.android.core.location.LocationEngineProvider
@@ -50,11 +51,11 @@ import com.mapbox.navigation.utils.thread.JobControl
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigation.utils.thread.monitorChannelWithException
 import com.mapbox.navigation.utils.timer.MapboxTimer
+import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.File
 import java.lang.reflect.Field
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
  * ## Mapbox Navigation Core SDK
@@ -484,7 +485,7 @@ constructor(
     private fun reRoute() {
         ifNonNull(
             directionsSession.getRouteOptions(),
-            tripSession.getRawLocation()
+            tripSession.getEnhancedLocation()
         ) { options, location ->
             val optionsRebuilt = buildAdjustedRouteOptions(options, location)
             directionsSession.requestRoutes(
@@ -501,35 +502,88 @@ constructor(
         val optionsBuilder = routeOptions.toBuilder()
         val coordinates = routeOptions.coordinates()
         tripSession.getRouteProgress()?.currentLegProgress()?.legIndex()?.let { index ->
-            optionsBuilder.coordinates(
-                coordinates.drop(index + 1).toMutableList().apply {
-                    add(0, Point.fromLngLat(location.longitude, location.latitude))
-                }
-            )
+            optionsBuilder
+                .coordinates(
+                    coordinates.drop(index + 1).toMutableList().apply {
+                        add(0, Point.fromLngLat(location.longitude, location.latitude))
+                    }
+                )
+                .bearingsList(let {
+                    val bearings = mutableListOf<List<Double>?>()
 
-            val bearings = mutableListOf<List<Double>?>()
+                    val originTolerance = routeOptions.bearingsList()?.getOrNull(0)?.getOrNull(1)
+                        ?: DEFAULT_REROUTE_BEARING_TOLERANCE
+                    val currentAngle = location.bearing.toDouble()
 
-            val originTolerance = routeOptions.bearingsList()?.getOrNull(0)?.getOrNull(1)
-                ?: DEFAULT_REROUTE_BEARING_TOLERANCE
-            val currentAngle = location.bearing.toDouble()
+                    bearings.add(listOf(currentAngle, originTolerance))
+                    val originalBearings = routeOptions.bearingsList()
+                    if (originalBearings != null) {
+                        bearings.addAll(originalBearings.subList(index + 1, coordinates.size))
+                    } else {
+                        while (bearings.size < coordinates.size) {
+                            bearings.add(null)
+                        }
+                    }
+                    bearings
+                })
+                .radiusesList(let radiusesList@{
+                    if (routeOptions.radiusesList().isNullOrEmpty()) {
+                        return@radiusesList emptyList<Double>()
+                    }
+                    mutableListOf<Double>().also {
+                        it.addAll(routeOptions.radiusesList()!!.subList(index, coordinates.size))
+                    }
+                })
+                .approachesList(let approachesList@{
+                    if (routeOptions.approachesList().isNullOrEmpty()) {
+                        return@approachesList emptyList<String>()
+                    }
+                    mutableListOf<String>().also {
+                        it.addAll(routeOptions.approachesList()!!.subList(index, coordinates.size))
+                    }
 
-            bearings.add(listOf(currentAngle, originTolerance))
-            val originalBearings = routeOptions.bearingsList()
-            if (originalBearings != null) {
-                bearings.addAll(originalBearings.subList(index + 1, coordinates.size))
-            } else {
-                while (bearings.size < coordinates.size) {
-                    bearings.add(null)
-                }
-            }
-
-            optionsBuilder.bearingsList(bearings)
-
-            // todo implement options.radiuses
-            // todo implement options.approaches
-            // todo implement options.waypointIndices
-            // todo implement options.waypointNames
-            // todo implement options.waypointTargets
+                })
+                .waypointIndicesList(let waypointIndicesList@{
+                    if (routeOptions.waypointIndicesList().isNullOrEmpty()) {
+                        return@waypointIndicesList emptyList<Int>()
+                    }
+                    mutableListOf<Int>().also {
+                        it.addAll(
+                            routeOptions.waypointIndicesList()!!.subList(
+                                index,
+                                coordinates.size
+                            )
+                        )
+                    }
+                })
+                .waypointNamesList(let waypointNamesList@{
+                    if (routeOptions.waypointNamesList().isNullOrEmpty()) {
+                        return@waypointNamesList emptyList<String>()
+                    }
+                    mutableListOf<String>().also {
+                        it.add("")
+                        it.addAll(
+                            routeOptions.waypointNamesList()!!.subList(
+                                index + 1,
+                                coordinates.size
+                            )
+                        )
+                    }
+                })
+                .waypointTargetsList(let waypointTargetsList@{
+                    if (routeOptions.waypointTargetsList().isNullOrEmpty()) {
+                        return@waypointTargetsList emptyList<Point>()
+                    }
+                    mutableListOf<Point?>().also {
+                        it.add(null)
+                        it.addAll(
+                            routeOptions.waypointTargetsList()!!.subList(
+                                index + 1,
+                                coordinates.size
+                            )
+                        )
+                    }
+                })
         }
 
         return optionsBuilder.build()
