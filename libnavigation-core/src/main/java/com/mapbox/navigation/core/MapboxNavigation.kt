@@ -5,7 +5,6 @@ import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
 import android.hardware.SensorEvent
 import android.location.Location
-import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.mapbox.android.core.location.LocationEngine
 import com.mapbox.android.core.location.LocationEngineProvider
@@ -51,11 +50,11 @@ import com.mapbox.navigation.utils.thread.JobControl
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigation.utils.thread.monitorChannelWithException
 import com.mapbox.navigation.utils.timer.MapboxTimer
-import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.File
 import java.lang.reflect.Field
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
  * ## Mapbox Navigation Core SDK
@@ -541,7 +540,6 @@ constructor(
                     mutableListOf<String>().also {
                         it.addAll(routeOptions.approachesList()!!.subList(index, coordinates.size))
                     }
-
                 })
                 .waypointIndicesList(let waypointIndicesList@{
                     if (routeOptions.waypointIndicesList().isNullOrEmpty()) {
