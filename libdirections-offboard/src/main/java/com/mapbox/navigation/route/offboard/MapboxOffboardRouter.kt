@@ -1,8 +1,10 @@
 package com.mapbox.navigation.route.offboard
 
 import android.content.Context
+import android.util.Log
 import com.mapbox.annotation.navigation.module.MapboxNavigationModule
 import com.mapbox.annotation.navigation.module.MapboxNavigationModuleType
+import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.api.directions.v5.MapboxDirections
 import com.mapbox.api.directions.v5.models.DirectionsResponse
 import com.mapbox.api.directions.v5.models.RouteOptions
@@ -39,6 +41,7 @@ class MapboxOffboardRouter(
     ) {
         mapboxDirections = RouteBuilderProvider.getBuilder(accessToken, context, skuTokenProvider)
             .routeOptions(routeOptions)
+            .enableRefresh(routeOptions.profile() == DirectionsCriteria.PROFILE_DRIVING_TRAFFIC)
             .build()
         mapboxDirections?.enqueueCall(object : Callback<DirectionsResponse> {
 
@@ -46,6 +49,7 @@ class MapboxOffboardRouter(
                 call: Call<DirectionsResponse>,
                 response: Response<DirectionsResponse>
             ) {
+                Log.i("location_debug", "request directions ${call.request().url()}")
                 val routes = response.body()?.routes()
                 when {
                     call.isCanceled -> callback.onCanceled()

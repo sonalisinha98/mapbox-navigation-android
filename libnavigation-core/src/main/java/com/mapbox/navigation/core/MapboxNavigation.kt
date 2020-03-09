@@ -5,6 +5,7 @@ import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
 import android.hardware.SensorEvent
 import android.location.Location
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.mapbox.android.core.location.LocationEngine
 import com.mapbox.android.core.location.LocationEngineProvider
@@ -35,6 +36,8 @@ import com.mapbox.navigation.core.fasterroute.FasterRouteObserver
 import com.mapbox.navigation.core.module.NavigationModuleProvider
 import com.mapbox.navigation.core.telemetry.MapboxNavigationTelemetry
 import com.mapbox.navigation.core.telemetry.events.TelemetryUserFeedback
+import com.mapbox.navigation.core.routerefresh.RouteRefreshApi
+import com.mapbox.navigation.core.routerefresh.RouteRefreshController
 import com.mapbox.navigation.core.trip.service.TripService
 import com.mapbox.navigation.core.trip.session.BannerInstructionsObserver
 import com.mapbox.navigation.core.trip.session.LocationObserver
@@ -52,11 +55,11 @@ import com.mapbox.navigation.utils.thread.JobControl
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigation.utils.thread.monitorChannelWithException
 import com.mapbox.navigation.utils.timer.MapboxTimer
+import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.File
 import java.lang.reflect.Field
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlinx.coroutines.channels.ReceiveChannel
 
 private const val MAPBOX_NAVIGATION_USER_AGENT_BASE = "mapbox-navigation-android"
 private const val MAPBOX_NAVIGATION_UI_USER_AGENT_BASE = "mapbox-navigation-ui-android"
@@ -138,6 +141,7 @@ constructor(
     private val internalOffRouteObserver = createInternalOffRouteObserver()
     private val fasterRouteTimer: MapboxTimer
     private val fasterRouteObservers = CopyOnWriteArrayList<FasterRouteObserver>()
+    private val routeRefreshController: RouteRefreshController
 
     private var notificationChannelField: Field? = null
     private val MAPBOX_NAVIGATION_NOTIFICATION_PACKAGE_NAME =
@@ -181,6 +185,7 @@ constructor(
             .createMapboxTimer(navigationOptions.fasterRouteDetectorInterval) {
                 requestFasterRoute()
             }
+
         ifNonNull(accessToken) { token ->
             MapboxMetricsReporter.init(
                 context,
@@ -197,7 +202,16 @@ constructor(
                 navigationOptions
             )
         }
+
+        routeRefreshController = RouteRefreshController(tripSession, RouteRefreshApi())
+        routeRefreshController.accessToken = accessToken ?: ""
+        routeRefreshController.intervalSeconds = 10
+        routeRefreshController.refreshRoute(mainJobController.scope) {
+            Log.i("location_debug", "route refreshed")
+        }
     }
+
+
 
     /**
      * Starts listening for location updates and enters an `Active Guidance` state if there's a primary route available
@@ -279,6 +293,7 @@ constructor(
      * Call this method whenever this instance of the [MapboxNavigation] is not going to be used anymore and should release all of its resources.
      */
     fun onDestroy() {
+        Log.i("location_debug", "onDestroy()")
         ThreadController.cancelAllNonUICoroutines()
         ThreadController.cancelAllUICoroutines()
         directionsSession.shutDownSession()

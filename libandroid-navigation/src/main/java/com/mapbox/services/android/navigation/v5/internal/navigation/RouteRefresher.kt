@@ -4,6 +4,7 @@ import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigation
 import com.mapbox.services.android.navigation.v5.navigation.RouteRefresh
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress
 import java.util.Date
+import java.util.concurrent.TimeUnit
 
 internal class RouteRefresher(
     private val mapboxNavigation: MapboxNavigation,
@@ -19,7 +20,8 @@ internal class RouteRefresher(
             return false
         }
         val millisSinceLastRefresh = currentDate.time - lastRefreshedDate.time
-        return millisSinceLastRefresh > refreshIntervalInMilliseconds
+        return millisSinceLastRefresh > TimeUnit.SECONDS.toMillis(5)
+//        return millisSinceLastRefresh > refreshIntervalInMilliseconds
     }
 
     fun refresh(routeProgress: RouteProgress) {
