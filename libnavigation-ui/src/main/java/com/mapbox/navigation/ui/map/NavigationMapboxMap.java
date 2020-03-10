@@ -307,7 +307,7 @@ public class NavigationMapboxMap {
     mapWayName.addProgressChangeListener(navigation);
     mapFpsDelegate.addProgressChangeListener(navigation);
 
-    if(navigationPuckPresenter != null) {
+    if (navigationPuckPresenter != null) {
       navigationPuckPresenter.addProgressChangeListener(navigation);
     }
   }
@@ -512,7 +512,7 @@ public class NavigationMapboxMap {
     handleFpsOnStart();
     locationFpsDelegate.onStart();
 
-    if(navigationPuckPresenter != null) {
+    if (navigationPuckPresenter != null) {
       navigationPuckPresenter.onStart();
     }
   }
@@ -528,7 +528,7 @@ public class NavigationMapboxMap {
     handleFpsOnStop();
     locationFpsDelegate.onStop();
 
-    if(navigationPuckPresenter != null) {
+    if (navigationPuckPresenter != null) {
       navigationPuckPresenter.onStop();
     }
   }
