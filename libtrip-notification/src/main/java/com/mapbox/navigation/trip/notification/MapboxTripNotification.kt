@@ -257,8 +257,13 @@ class MapboxTripNotification constructor(
     private fun setFreeDriveMode(isFreeDriveMode: Boolean) {
         updateEstimationBlockVisibility(isFreeDriveMode)
         updateFreeDriveTextVisibility(isFreeDriveMode)
-        setDefaultManeuverImageResource()
+        setDefaultManeuverImageResource(isFreeDriveMode)
         updateEndNavigationBtnText(isFreeDriveMode)
+        if (isFreeDriveMode) {
+            currentManeuverType = null
+            currentManeuverModifier = null
+            currentRoundaboutAngle = DEFAULT_ROUNDABOUT_ANGLE
+        }
     }
 
     private fun updateEstimationBlockVisibility(isFreeDriveMode: Boolean) {
@@ -290,15 +295,17 @@ class MapboxTripNotification constructor(
         )
     }
 
-    private fun setDefaultManeuverImageResource() {
-        collapsedNotificationRemoteViews?.setImageViewResource(
-                R.id.maneuverImage,
-                R.drawable.ic_navigation
-        )
-        expandedNotificationRemoteViews?.setImageViewResource(
-                R.id.maneuverImage,
-                R.drawable.ic_navigation
-        )
+    private fun setDefaultManeuverImageResource(isFreeDriveMode: Boolean) {
+        if (isFreeDriveMode) {
+            collapsedNotificationRemoteViews?.setImageViewResource(
+                    R.id.maneuverImage,
+                    R.drawable.ic_navigation
+            )
+            expandedNotificationRemoteViews?.setImageViewResource(
+                    R.id.maneuverImage,
+                    R.drawable.ic_navigation
+            )
+        }
     }
 
     private fun updateInstructionText(bannerInstruction: BannerInstructions?) {
