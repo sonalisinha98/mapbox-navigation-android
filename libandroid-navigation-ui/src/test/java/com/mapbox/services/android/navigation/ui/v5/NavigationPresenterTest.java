@@ -37,7 +37,7 @@ public class NavigationPresenterTest {
 
     presenter.onRouteOverviewClick();
 
-    verify(view).updateWayNameVisibility(false);
+    verify(view).setWayNameActive(false);
   }
 
   @Test
@@ -67,7 +67,7 @@ public class NavigationPresenterTest {
 
     presenter.onRecenterClick();
 
-    verify(view).updateWayNameVisibility(true);
+    verify(view).setWayNameActive(true);
   }
 
   @Test
@@ -77,7 +77,7 @@ public class NavigationPresenterTest {
 
     presenter.onWayNameChanged("Some way name");
 
-    verify(view).updateWayNameVisibility(true);
+    verify(view).setWayNameActive(true);
   }
 
   @Test
@@ -98,7 +98,7 @@ public class NavigationPresenterTest {
 
     presenter.onWayNameChanged("");
 
-    verify(view).updateWayNameVisibility(false);
+    verify(view).setWayNameActive(false);
   }
 
   @Test
@@ -109,7 +109,7 @@ public class NavigationPresenterTest {
 
     presenter.onWayNameChanged("some valid way name");
 
-    verify(view).updateWayNameVisibility(false);
+    verify(view).setWayNameActive(false);
   }
 
   @Test
@@ -119,7 +119,7 @@ public class NavigationPresenterTest {
 
     presenter.onNavigationStopped();
 
-    verify(view).updateWayNameVisibility(false);
+    verify(view).setWayNameActive(false);
   }
 
   @Test

@@ -22,6 +22,7 @@ import androidx.lifecycle.ViewModelProviders;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.api.directions.v5.models.RouteOptions;
+import com.mapbox.core.utils.TextUtils;
 import com.mapbox.geojson.Point;
 import com.mapbox.libnavigation.ui.R;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
@@ -326,18 +327,24 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
    * Updates the visibility of the way name view that is show below
    * the navigation icon.
    * <p>
-   * If you'd like to use this method without being overridden by the default visibility values
+   * If you'd like to use this method without being overridden by the default visibility
    * values we provide, please disabled auto-query with
    * {@link NavigationMapboxMap#updateWaynameQueryMap(boolean)}.
    *
-   * @param isVisible true to show, false to hide
+   * @param isActive true to active, false to inactive
    */
   @Override
-  public void updateWayNameVisibility(boolean isVisible) {
-    wayNameView.updateVisibility(isVisible);
+  public void setWayNameActive(boolean isActive) {
+    wayNameView.updateVisibility(isActive && !TextUtils.isEmpty(wayNameView.retrieveWayNameText()));
     if (navigationMap != null) {
-      navigationMap.updateWaynameQueryMap(isVisible);
+      navigationMap.updateWaynameQueryMap(isActive);
     }
+  }
+
+  @Override
+  @Deprecated
+  public void updateWayNameVisibility(boolean isVisible) {
+    setWayNameActive(isVisible);
   }
 
   @Override

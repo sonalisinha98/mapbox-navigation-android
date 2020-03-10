@@ -17,6 +17,9 @@ public interface NavigationContract {
 
     boolean isSummaryBottomSheetHidden();
 
+    void setWayNameActive(boolean isActive);
+
+    @Deprecated
     void updateWayNameVisibility(boolean isVisible);
 
     void updateWayNameView(@NonNull String wayName);

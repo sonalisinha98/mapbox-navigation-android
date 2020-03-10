@@ -21,7 +21,7 @@ class MapWayName {
 
   private static final String NAME_PROPERTY = "name";
   private static final String EMPTY_CURRENT_WAY_NAME = "";
-  private final MapWaynameProgressChangeListener progressChangeListener = new MapWaynameProgressChangeListener(this);
+  private final MapWayNameChangeObserver mapWayNameChangeObserver = new MapWayNameChangeObserver(this);
   private final Set<OnWayNameChangedListener> onWayNameChangedListeners;
   private WaynameFeatureFinder featureInteractor;
   private List<Point> currentStepPoints = new ArrayList<>();
@@ -67,7 +67,7 @@ class MapWayName {
 
   void addProgressChangeListener(MapboxNavigation navigation) {
     this.navigation = navigation;
-    navigation.registerRouteProgressObserver(progressChangeListener);
+    registerObservers();
   }
 
   boolean addOnWayNameChangedListener(OnWayNameChangedListener listener) {
@@ -79,17 +79,27 @@ class MapWayName {
   }
 
   void onStart() {
-    if (navigation != null) {
-      navigation.registerRouteProgressObserver(progressChangeListener);
-    }
+    registerObservers();
   }
 
   void onStop() {
     if (isTaskRunning()) {
       filterTask.cancel(true);
     }
+    unregisterObservers();
+  }
+
+  private void registerObservers() {
     if (navigation != null) {
-      navigation.unregisterRouteProgressObserver(progressChangeListener);
+      navigation.registerRouteProgressObserver(mapWayNameChangeObserver);
+      navigation.registerLocationObserver(mapWayNameChangeObserver);
+    }
+  }
+
+  private void unregisterObservers() {
+    if (navigation != null) {
+      navigation.unregisterRouteProgressObserver(mapWayNameChangeObserver);
+      navigation.unregisterLocationObserver(mapWayNameChangeObserver);
     }
   }
 
