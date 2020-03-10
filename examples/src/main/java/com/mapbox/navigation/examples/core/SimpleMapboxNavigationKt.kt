@@ -36,15 +36,12 @@ import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions
 import com.mapbox.navigation.base.extensions.applyDefaultParams
 import com.mapbox.navigation.base.extensions.coordinates
 import com.mapbox.navigation.base.options.NavigationOptions
-import com.mapbox.navigation.base.trip.model.RouteProgress
-import com.mapbox.navigation.base.trip.model.RouteProgressState
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.directions.session.RoutesRequestCallback
 import com.mapbox.navigation.core.fasterroute.FasterRouteObserver
 import com.mapbox.navigation.core.location.ReplayRouteLocationEngine
 import com.mapbox.navigation.core.trip.session.LocationObserver
-import com.mapbox.navigation.core.trip.session.RouteProgressObserver
 import com.mapbox.navigation.core.trip.session.TripSessionState
 import com.mapbox.navigation.core.trip.session.TripSessionStateObserver
 import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver
@@ -54,6 +51,7 @@ import com.mapbox.navigation.examples.utils.extensions.toPoint
 import com.mapbox.navigation.ui.camera.DynamicCamera
 import com.mapbox.navigation.ui.camera.NavigationCamera
 import com.mapbox.navigation.ui.map.NavigationMapboxMap
+import com.mapbox.navigation.ui.puck.DefaultMapboxPuckDrawableSupplier
 import com.mapbox.navigation.ui.voice.NavigationSpeechPlayer
 import com.mapbox.navigation.ui.voice.SpeechPlayerProvider
 import com.mapbox.navigation.ui.voice.VoiceInstructionLoader
@@ -173,6 +171,7 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
 
             navigationMapboxMap = NavigationMapboxMap(mapView, mapboxMap)
             navigationMapboxMap.setCamera(DynamicCamera(mapboxMap))
+            navigationMapboxMap.setPuckDrawableSupplier(DefaultMapboxPuckDrawableSupplier())
             navigationMapboxMap.addProgressChangeListener(mapboxNavigation)
             navigationMapboxMap.setOnRouteSelectionChangeListener { route ->
                 mapboxNavigation.setRoutes(mapboxNavigation.getRoutes().toMutableList().apply {
@@ -259,13 +258,6 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
 
     private fun stopLocationUpdates() {
         localLocationEngine.removeLocationUpdates(locationEngineCallback)
-    }
-
-    private val routeProgressObserver = object : RouteProgressObserver {
-        override fun onRouteProgressChanged(routeProgress: RouteProgress) {
-            Timber.d("route progress %s", routeProgress.toString())
-            updatePuck(routeProgress)
-        }
     }
 
     private val routesObserver = object : RoutesObserver {
@@ -366,7 +358,6 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
         }
 
         mapboxNavigation.registerLocationObserver(locationObserver)
-        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerTripSessionStateObserver(tripSessionStateObserver)
         mapboxNavigation.registerFasterRouteObserver(fasterRouteObserver)
@@ -377,7 +368,6 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
         mapView.onStop()
 
         mapboxNavigation.unregisterLocationObserver(locationObserver)
-        mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
         mapboxNavigation.unregisterTripSessionStateObserver(tripSessionStateObserver)
         mapboxNavigation.unregisterFasterRouteObserver(fasterRouteObserver)
@@ -458,15 +448,15 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
             .getBoolean(this.getString(R.string.simulate_route_key), false)
     }
 
-    private fun updatePuck(routeProgress: RouteProgress) {
-        val drawableId = when (routeProgress.currentState()) {
-            RouteProgressState.ROUTE_INVALID -> R.drawable.logistics_user_puck_icon_uncertain_location
-            RouteProgressState.ROUTE_INITIALIZED -> R.drawable.logistics_user_puck_icon
-            RouteProgressState.LOCATION_TRACKING -> R.drawable.logistics_user_puck_icon
-            RouteProgressState.ROUTE_ARRIVED -> R.drawable.logistics_user_puck_icon_uncertain_location
-            RouteProgressState.LOCATION_STALE -> R.drawable.logistics_user_puck_icon
-            else -> R.drawable.logistics_user_puck_icon_uncertain_location
-        }
-        navigationMapboxMap.updateCurrentLocationDrawable(drawableId)
-    }
+//    private fun updatePuck(routeProgress: RouteProgress) {
+//        val drawableId = when (routeProgress.currentState()) {
+//            RouteProgressState.ROUTE_INVALID -> R.drawable.user_puck_icon_uncertain_location
+//            RouteProgressState.ROUTE_INITIALIZED -> R.drawable.user_puck_icon
+//            RouteProgressState.LOCATION_TRACKING -> R.drawable.user_puck_icon
+//            RouteProgressState.ROUTE_ARRIVED -> R.drawable.user_puck_icon_uncertain_location
+//            RouteProgressState.LOCATION_STALE -> R.drawable.user_puck_icon
+//            else -> R.drawable.user_puck_icon_uncertain_location
+//        }
+//        navigationMapboxMap.updateCurrentLocationDrawable(drawableId)
+//    }
 }

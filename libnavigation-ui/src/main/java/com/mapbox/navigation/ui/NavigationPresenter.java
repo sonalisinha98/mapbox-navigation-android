@@ -8,7 +8,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.core.utils.TextUtils;
 import com.mapbox.geojson.Point;
-import com.mapbox.navigation.base.trip.model.RouteProgress;
 
 class NavigationPresenter {
 
@@ -87,9 +86,5 @@ class NavigationPresenter {
     view.updateWayNameVisibility(false);
     view.updateCameraRouteOverview();
     view.showRecenterBtn();
-  }
-
-  void onRouteProgress(RouteProgress routeProgress) {
-    view.updatePuckState(routeProgress);
   }
 }

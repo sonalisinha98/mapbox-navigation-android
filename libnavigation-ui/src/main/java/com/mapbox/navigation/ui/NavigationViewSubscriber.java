@@ -11,7 +11,6 @@ import androidx.lifecycle.OnLifecycleEvent;
 
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.geojson.Point;
-import com.mapbox.navigation.base.trip.model.RouteProgress;
 
 class NavigationViewSubscriber implements LifecycleObserver {
 
@@ -52,15 +51,6 @@ class NavigationViewSubscriber implements LifecycleObserver {
         if (location != null) {
           navigationPresenter.onNavigationLocationUpdate(location);
         }
-      }
-    });
-
-    navigationViewModel.retrieveRouteProgressUpdates().observe(lifecycleOwner, new Observer<RouteProgress>() {
-      @Override
-      public void onChanged(RouteProgress routeProgress) {
-          if(routeProgress != null) {
-            navigationPresenter.onRouteProgress(routeProgress);
-          }
       }
     });
 

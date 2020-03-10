@@ -36,8 +36,6 @@ import com.mapbox.navigation.core.accounts.MapboxNavigationAccounts;
 import com.mapbox.navigation.core.location.ReplayRouteLocationEngine;
 import com.mapbox.navigation.core.trip.session.BannerInstructionsObserver;
 import com.mapbox.navigation.core.trip.session.OffRouteObserver;
-import com.mapbox.navigation.core.trip.session.TripSessionState;
-import com.mapbox.navigation.core.trip.session.TripSessionStateObserver;
 import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver;
 import com.mapbox.navigation.navigator.MapboxNativeNavigatorImpl;
 import com.mapbox.navigation.route.hybrid.MapboxHybridRouter;
@@ -346,8 +344,6 @@ public class NavigationViewModel extends AndroidViewModel {
   }
 
   LiveData<Location> retrieveLocationUdpates() { return locationUpdates; }
-
-  LiveData<RouteProgress> retrieveRouteProgressUpdates() { return routeProgressUpdates; }
 
   public LiveData<InstructionModel> retrieveInstructionModel() {
     return instructionModel;
