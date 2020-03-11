@@ -9,7 +9,7 @@ const val ROUNDING_INCREMENT_FIFTY = 50
 const val ROUNDING_INCREMENT_ONE_HUNDRED = 100
 
 /**
- * Defines threshold in meters for determination is user off the route
+ * Defines the increment displayed on the instruction view
  */
 @Retention(AnnotationRetention.SOURCE)
 @IntDef(
