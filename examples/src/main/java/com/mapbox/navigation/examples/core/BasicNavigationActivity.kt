@@ -6,32 +6,36 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.mapbox.android.core.location.*
+import com.mapbox.android.core.location.LocationEngine
+import com.mapbox.android.core.location.LocationEngineCallback
+import com.mapbox.android.core.location.LocationEngineProvider
+import com.mapbox.android.core.location.LocationEngineRequest
+import com.mapbox.android.core.location.LocationEngineResult
 import com.mapbox.android.core.permissions.PermissionsListener
 import com.mapbox.android.core.permissions.PermissionsManager
 import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
-import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions
 import com.mapbox.mapboxsdk.location.modes.CameraMode
 import com.mapbox.mapboxsdk.location.modes.RenderMode
 import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback
 import com.mapbox.mapboxsdk.maps.Style
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolManager
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions
 import com.mapbox.navigation.base.extensions.applyDefaultParams
 import com.mapbox.navigation.base.extensions.coordinates
+import com.mapbox.navigation.base.trip.model.RouteProgress
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesRequestCallback
 import com.mapbox.navigation.core.trip.session.LocationObserver
+import com.mapbox.navigation.core.trip.session.RouteProgressObserver
 import com.mapbox.navigation.examples.R
 import com.mapbox.navigation.examples.utils.Utils
 import com.mapbox.navigation.examples.utils.extensions.toPoint
 import com.mapbox.navigation.ui.camera.NavigationCamera
 import com.mapbox.navigation.ui.map.NavigationMapboxMap
+import com.mapbox.navigation.ui.map.NavigationMapboxMapInstanceState
 import kotlinx.android.synthetic.main.activity_basic_navigation_layout.*
 import kotlinx.android.synthetic.main.activity_trip_service.mapView
 import timber.log.Timber
@@ -39,6 +43,7 @@ import timber.log.Timber
 class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, PermissionsListener {
 
     companion object {
+        const val MAP_INSTANCE_STATE_KEY = "navgation_mapbox_map_instance_state"
         const val DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L
         const val DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5
     }
@@ -47,6 +52,7 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
     private var locationEngine: LocationEngine? = null
     private var mapboxNavigation: MapboxNavigation? = null
     private var navigationMapboxMap: NavigationMapboxMap? = null
+    private var mapInstanceState: NavigationMapboxMapInstanceState? = null
 
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,7 +70,9 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
                 applicationContext,
                 Utils.getMapboxAccessToken(this),
                 mapboxNavigationOptions
-        )
+        ).also {
+            it.registerRouteProgressObserver(routeProgressObserver)
+        }
 
         initListeners()
     }
@@ -75,6 +83,9 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
             initLocationComponent(style, mapboxMap)
             navigationMapboxMap = NavigationMapboxMap(mapView, mapboxMap).also {
                 it.addProgressChangeListener(mapboxNavigation!!)
+                mapInstanceState?.let { state ->
+                    it.restoreFrom(state)
+                }
             }
         }
         mapboxMap.addOnMapLongClickListener { latLng ->
@@ -101,7 +112,7 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
                 mapboxMap.locationComponent.let { locationComponent ->
                     val locationComponentActivationOptions =
                             LocationComponentActivationOptions.builder(this, loadedMapStyle)
-                                    //.useDefaultLocationEngine(true)
+                                    // .useDefaultLocationEngine(true)
                                     .build()
 
                     locationComponent.activateLocationComponent(locationComponentActivationOptions)
@@ -158,7 +169,7 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
     @SuppressLint("MissingPermission")
     fun initListeners() {
         startNavigation.setOnClickListener {
-            if(mapboxNavigation?.getRoutes()?.isNotEmpty() == true) {
+            if (mapboxNavigation?.getRoutes()?.isNotEmpty() == true) {
                 navigationMapboxMap?.updateLocationLayerRenderMode(RenderMode.GPS)
                 navigationMapboxMap?.updateCameraTrackingMode(NavigationCamera.NAVIGATION_TRACKING_MODE_GPS)
                 navigationMapboxMap?.startCamera(mapboxNavigation?.getRoutes()!![0])
@@ -187,6 +198,7 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
     override fun onStop() {
         super.onStop()
         mapboxNavigation?.unregisterLocationObserver(locationObserver)
+        mapboxNavigation?.unregisterRouteProgressObserver(routeProgressObserver)
         stopLocationUpdates()
         mapView.onStop()
     }
@@ -205,11 +217,17 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        navigationMapboxMap?.saveStateWith(MAP_INSTANCE_STATE_KEY, outState)
         mapView.onSaveInstanceState(outState)
     }
 
+    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
+        super.onRestoreInstanceState(savedInstanceState)
+        mapInstanceState = savedInstanceState?.getParcelable(MAP_INSTANCE_STATE_KEY)
+    }
+
     override fun onPermissionResult(granted: Boolean) {
-        when(granted) {
+        when (granted) {
             true -> {
                 // todo
             }
@@ -244,8 +262,8 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
         }
 
         override fun onEnhancedLocationChanged(
-                enhancedLocation: Location,
-                keyPoints: List<Location>
+            enhancedLocation: Location,
+            keyPoints: List<Location>
         ) {
             mapView.getMapAsync { mapboxMap ->
                 if (keyPoints.isNotEmpty()) {
@@ -256,6 +274,13 @@ class BasicNavigationActivity : AppCompatActivity(), OnMapReadyCallback, Permiss
             }
             Timber.d("enhanced location %s", enhancedLocation)
             Timber.d("enhanced keyPoints %s", keyPoints)
+        }
+    }
+
+    private val routeProgressObserver = object : RouteProgressObserver {
+        override fun onRouteProgressChanged(routeProgress: RouteProgress) {
+            // do something with the route progress
+            Timber.i("route progress: ${routeProgress.currentState()}")
         }
     }
 }
