@@ -15,7 +15,6 @@ import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.geojson.Point
 import com.mapbox.navigation.base.accounts.SkuTokenProvider
 import com.mapbox.navigation.base.extensions.ifNonNull
-import com.mapbox.navigation.base.options.DEFAULT_FASTER_ROUTE_DETECTOR_INTERVAL
 import com.mapbox.navigation.base.options.DEFAULT_NAVIGATOR_POLLING_DELAY
 import com.mapbox.navigation.base.options.Endpoint
 import com.mapbox.navigation.base.options.MapboxOnboardRouterConfig
@@ -136,7 +135,7 @@ constructor(
     private val navigationSession = NavigationSession(context)
     private val internalRoutesObserver = createInternalRoutesObserver()
     private val internalOffRouteObserver = createInternalOffRouteObserver()
-    private val fasterRouteTimer: MapboxTimer
+    private val fasterRouteTimer = MapboxTimer()
     private val fasterRouteObservers = CopyOnWriteArrayList<FasterRouteObserver>()
 
     private var notificationChannelField: Field? = null
@@ -176,11 +175,6 @@ constructor(
         )
         tripSession.registerOffRouteObserver(internalOffRouteObserver)
         tripSession.registerStateObserver(navigationSession)
-
-        fasterRouteTimer = NavigationComponentProvider
-            .createMapboxTimer(navigationOptions.fasterRouteDetectorInterval) {
-                requestFasterRoute()
-            }
         ifNonNull(accessToken) { token ->
             MapboxMetricsReporter.init(
                 context,
@@ -291,7 +285,7 @@ constructor(
         tripSession.unregisterAllVoiceInstructionsObservers()
         MapboxNavigationTelemetry.unregisterListeners(this)
         fasterRouteObservers.clear()
-        fasterRouteTimer.stop()
+        fasterRouteTimer.stopJobs()
     }
 
     /**
@@ -433,14 +427,14 @@ constructor(
 
     fun registerFasterRouteObserver(fasterRouteObserver: FasterRouteObserver) {
         fasterRouteObservers.add(fasterRouteObserver)
-        fasterRouteTimer.start()
+        fasterRouteTimer.startRouteRefresh {
+            requestFasterRoute()
+        }
     }
 
     fun unregisterFasterRouteObserver(fasterRouteObserver: FasterRouteObserver) {
         fasterRouteObservers.remove(fasterRouteObserver)
-        if (fasterRouteObservers.isEmpty()) {
-            fasterRouteTimer.stop()
-        }
+        fasterRouteTimer.stopJobs()
     }
 
     private fun createInternalRoutesObserver() = object : RoutesObserver {
@@ -634,7 +628,6 @@ constructor(
                 .timeFormatType(NONE_SPECIFIED)
                 .roundingIncrement(ROUNDING_INCREMENT_FIFTY)
                 .navigatorPollingDelay(DEFAULT_NAVIGATOR_POLLING_DELAY)
-                .fasterRouteDetectorInterval(DEFAULT_FASTER_ROUTE_DETECTOR_INTERVAL)
                 .distanceFormatter(
                     MapboxDistanceFormatter(
                         context.applicationContext,
