@@ -20,6 +20,7 @@ const val DEFAULT_FASTER_ROUTE_DETECTOR_INTERVAL = 2 * 60 * 1000L // 2 minutes
  * in such a way as to project the location forward along the current trajectory so as to
  * appear more in sync with the users ground-truth location
  *
+ * @param fasterRouteDetectorInterval defines time interval in milliseconds for detection is faster route available
  * @param distanceFormatter [DistanceFormatter] for format distances showing in notification during navigation
  * @param onboardRouterConfig [MapboxOnboardRouterConfig] defines configuration for the default on-board router
  */
