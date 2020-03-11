@@ -4,7 +4,6 @@ import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
 import android.hardware.SensorEvent
-import android.location.Location
 import androidx.annotation.RequiresPermission
 import com.mapbox.android.core.location.LocationEngine
 import com.mapbox.android.core.location.LocationEngineProvider
@@ -12,7 +11,6 @@ import com.mapbox.android.core.location.LocationEngineRequest
 import com.mapbox.annotation.navigation.module.MapboxNavigationModuleType
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.geojson.Point
 import com.mapbox.navigation.base.accounts.SkuTokenProvider
 import com.mapbox.navigation.base.extensions.ifNonNull
 import com.mapbox.navigation.base.options.DEFAULT_NAVIGATOR_POLLING_DELAY
@@ -29,7 +27,7 @@ import com.mapbox.navigation.core.accounts.MapboxNavigationAccounts
 import com.mapbox.navigation.core.directions.session.DirectionsSession
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.directions.session.RoutesRequestCallback
-import com.mapbox.navigation.core.fasterroute.FasterRouteDetector
+import com.mapbox.navigation.core.fasterroute.FasterRouteController
 import com.mapbox.navigation.core.fasterroute.FasterRouteObserver
 import com.mapbox.navigation.core.module.NavigationModuleProvider
 import com.mapbox.navigation.core.telemetry.MapboxNavigationTelemetry
@@ -50,12 +48,10 @@ import com.mapbox.navigation.utils.network.NetworkStatusService
 import com.mapbox.navigation.utils.thread.JobControl
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigation.utils.thread.monitorChannelWithException
-import com.mapbox.navigation.utils.timer.MapboxTimer
+import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.File
 import java.lang.reflect.Field
 import java.net.URI
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlinx.coroutines.channels.ReceiveChannel
 
 private const val MAPBOX_NAVIGATION_USER_AGENT_BASE = "mapbox-navigation-android"
 private const val MAPBOX_NAVIGATION_UI_USER_AGENT_BASE = "mapbox-navigation-ui-android"
@@ -135,8 +131,7 @@ constructor(
     private val navigationSession = NavigationSession(context)
     private val internalRoutesObserver = createInternalRoutesObserver()
     private val internalOffRouteObserver = createInternalOffRouteObserver()
-    private val fasterRouteTimer = MapboxTimer()
-    private val fasterRouteObservers = CopyOnWriteArrayList<FasterRouteObserver>()
+    private val fasterRouteController: FasterRouteController
 
     private var notificationChannelField: Field? = null
     private val MAPBOX_NAVIGATION_NOTIFICATION_PACKAGE_NAME =
@@ -191,6 +186,8 @@ constructor(
                 navigationOptions
             )
         }
+
+        fasterRouteController = FasterRouteController(directionsSession, tripSession)
     }
 
     /**
@@ -284,8 +281,7 @@ constructor(
         tripSession.unregisterAllBannerInstructionsObservers()
         tripSession.unregisterAllVoiceInstructionsObservers()
         MapboxNavigationTelemetry.unregisterListeners(this)
-        fasterRouteObservers.clear()
-        fasterRouteTimer.stopJobs()
+        fasterRouteController.stop()
     }
 
     /**
@@ -426,15 +422,11 @@ constructor(
     }
 
     fun registerFasterRouteObserver(fasterRouteObserver: FasterRouteObserver) {
-        fasterRouteObservers.add(fasterRouteObserver)
-        fasterRouteTimer.startRouteRefresh {
-            requestFasterRoute()
-        }
+        fasterRouteController.attach(fasterRouteObserver)
     }
 
     fun unregisterFasterRouteObserver(fasterRouteObserver: FasterRouteObserver) {
-        fasterRouteObservers.remove(fasterRouteObserver)
-        fasterRouteTimer.stopJobs()
+        fasterRouteController.detach(fasterRouteObserver)
     }
 
     private fun createInternalRoutesObserver() = object : RoutesObserver {
@@ -455,88 +447,18 @@ constructor(
         }
     }
 
-    private fun requestFasterRoute() {
-        ifNonNull(
-            directionsSession.getRouteOptions(),
-            tripSession.getEnhancedLocation()
-        ) { options, enhancedLocation ->
-            val optionsRebuilt = buildAdjustedRouteOptions(options, enhancedLocation)
-            directionsSession.requestFasterRoute(optionsRebuilt, fasterRouteRequestCallback)
-        }
-    }
-
-    private val fasterRouteRequestCallback = object : RoutesRequestCallback {
-        override fun onRoutesReady(routes: List<DirectionsRoute>) {
-            tripSession.getRouteProgress()?.let { progress ->
-                if (FasterRouteDetector.isRouteFaster(routes[0], progress)) {
-                    fasterRouteObservers.forEach { it.onFasterRouteAvailable(routes[0]) }
-                }
-            }
-        }
-
-        override fun onRoutesRequestFailure(throwable: Throwable, routeOptions: RouteOptions) {
-            // do nothing
-            // todo log in the future
-        }
-
-        override fun onRoutesRequestCanceled(routeOptions: RouteOptions) {
-            // do nothing
-            // todo log in the future
-        }
-    }
-
     private fun reRoute() {
         ifNonNull(
             directionsSession.getRouteOptions(),
             tripSession.getRawLocation()
         ) { options, location ->
-            val optionsRebuilt = buildAdjustedRouteOptions(options, location)
+            val routeProgress = tripSession.getRouteProgress() ?: return
+            val optionsRebuilt = directionsSession.buildAdjustedRouteOptions(options, routeProgress, location)
             directionsSession.requestRoutes(
                 optionsRebuilt,
                 null
             )
         }
-    }
-
-    private fun buildAdjustedRouteOptions(
-        routeOptions: RouteOptions,
-        location: Location
-    ): RouteOptions {
-        val optionsBuilder = routeOptions.toBuilder()
-        val coordinates = routeOptions.coordinates()
-        tripSession.getRouteProgress()?.currentLegProgress()?.legIndex()?.let { index ->
-            optionsBuilder.coordinates(
-                coordinates.drop(index + 1).toMutableList().apply {
-                    add(0, Point.fromLngLat(location.longitude, location.latitude))
-                }
-            )
-
-            val bearings = mutableListOf<List<Double>?>()
-
-            val originTolerance = routeOptions.bearingsList()?.getOrNull(0)?.getOrNull(1)
-                ?: DEFAULT_REROUTE_BEARING_TOLERANCE
-            val currentAngle = location.bearing.toDouble()
-
-            bearings.add(listOf(currentAngle, originTolerance))
-            val originalBearings = routeOptions.bearingsList()
-            if (originalBearings != null) {
-                bearings.addAll(originalBearings.subList(index + 1, coordinates.size))
-            } else {
-                while (bearings.size < coordinates.size) {
-                    bearings.add(null)
-                }
-            }
-
-            optionsBuilder.bearingsList(bearings)
-
-            // todo implement options.radiuses
-            // todo implement options.approaches
-            // todo implement options.waypointIndices
-            // todo implement options.waypointNames
-            // todo implement options.waypointTargets
-        }
-
-        return optionsBuilder.build()
     }
 
     private fun obtainUserAgent(isFromNavigationUi: Boolean): String {
@@ -601,7 +523,7 @@ constructor(
     }
 
     companion object {
-        private const val DEFAULT_REROUTE_BEARING_TOLERANCE = 90.0
+
         @JvmStatic
         fun postUserFeedback(
             @TelemetryUserFeedback.FeedbackType feedbackType: String,

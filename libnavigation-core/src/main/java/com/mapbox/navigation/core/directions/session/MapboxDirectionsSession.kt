@@ -1,9 +1,13 @@
 package com.mapbox.navigation.core.directions.session
 
+import android.location.Location
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
+import com.mapbox.geojson.Point
 import com.mapbox.navigation.base.extensions.ifNonNull
 import com.mapbox.navigation.base.route.Router
+import com.mapbox.navigation.base.trip.model.RouteProgress
+import com.mapbox.navigation.core.MapboxNavigation
 import java.util.concurrent.CopyOnWriteArrayList
 
 // todo make internal
@@ -57,6 +61,49 @@ class MapboxDirectionsSession(
         })
     }
 
+    override fun buildAdjustedRouteOptions(
+        routeOptions: RouteOptions,
+        routeProgress: RouteProgress,
+        location: Location
+    ): RouteOptions {
+        val optionsBuilder = routeOptions.toBuilder()
+        val coordinates = routeOptions.coordinates()
+        routeProgress.currentLegProgress()?.legIndex()?.let { index ->
+            optionsBuilder.coordinates(
+                coordinates.drop(index + 1).toMutableList().apply {
+                    add(0, Point.fromLngLat(location.longitude, location.latitude))
+                }
+            )
+
+            val bearings = mutableListOf<List<Double>?>()
+
+            val originTolerance = routeOptions.bearingsList()?.getOrNull(0)?.getOrNull(1)
+                ?: DEFAULT_REROUTE_BEARING_TOLERANCE
+            val currentAngle = location.bearing.toDouble()
+
+            bearings.add(listOf(currentAngle, originTolerance))
+            val originalBearings = routeOptions.bearingsList()
+            if (originalBearings != null) {
+                bearings.addAll(originalBearings.subList(index + 1, coordinates.size))
+            } else {
+                while (bearings.size < coordinates.size) {
+                    bearings.add(null)
+                }
+            }
+
+            optionsBuilder.bearingsList(bearings)
+
+            // todo implement options.radiuses
+            // todo implement options.approaches
+            // todo implement options.waypointIndices
+            // todo implement options.waypointNames
+            // todo implement options.waypointTargets
+        }
+
+        return optionsBuilder.build()
+    }
+
+
     override fun requestFasterRoute(
         adjustedRouteOptions: RouteOptions,
         routesRequestCallback: RoutesRequestCallback
@@ -101,5 +148,9 @@ class MapboxDirectionsSession(
 
     override fun shutDownSession() {
         cancel()
+    }
+
+    companion object {
+        private const val DEFAULT_REROUTE_BEARING_TOLERANCE = 90.0
     }
 }
