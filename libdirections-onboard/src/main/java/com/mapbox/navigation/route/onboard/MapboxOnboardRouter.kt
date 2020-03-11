@@ -12,6 +12,7 @@ import com.mapbox.navigation.base.route.Router
 import com.mapbox.navigation.base.route.internal.RouteUrl
 import com.mapbox.navigation.navigator.MapboxNativeNavigator
 import com.mapbox.navigation.route.onboard.model.OfflineRouteError
+import com.mapbox.navigation.route.onboard.network.HttpClient
 import com.mapbox.navigation.utils.exceptions.NavigationException
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigator.RouterParams
@@ -63,7 +64,7 @@ class MapboxOnboardRouter(
                         ""
                     )
                 })
-            navigatorNative.configureRouter(routerParams, null)
+            navigatorNative.configureRouter(routerParams, HttpClient())
         }
     }
 

@@ -35,6 +35,14 @@ interface MapboxNativeNavigator {
      * @return true if the raw location was usable false if not
      */
     fun updateLocation(rawLocation: Location): Boolean
+
+    /**
+     * Passes in the current sensor data of the user.
+     *
+     * @param sensorEvent The current sensor data of user.
+     *
+     * @return true if the sensor data was usable false if not
+     */
     fun updateSensorEvent(sensorEvent: SensorEvent): Boolean
 
     /**
@@ -77,7 +85,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Updates annotations so that subsequent calls to getStatus will
-     * reflect the most current annotations for the route
+     * reflect the most current annotations for the route.
      *
      * @param legAnnotationJson A string containing the json/pbf annotations
      * @param routeIndex Which route to apply the annotation update to
@@ -89,7 +97,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Gets the banner at a specific step index in the route. If there is no
-     * banner at the specified index, we will do something.
+     * banner at the specified index method return *null*.
      *
      * @param index Which step you want to get [BannerInstruction] for
      *
@@ -100,7 +108,7 @@ interface MapboxNativeNavigator {
     /**
      * Gets a polygon around the currently loaded route. The method uses a bitmap approach
      * in which you specify a grid size (pixel size) and a dilation (how many pixels) to
-     * expand the intial grid cells that are interesected by the route.
+     * expand the initial grid cells that are intersected by the route.
      *
      * @param gridSize the size of the individual grid cells
      * @param bufferDilation the number of pixels to dilate the initial intersection by it can
@@ -114,7 +122,7 @@ interface MapboxNativeNavigator {
     ): String?
 
     /**
-     * Follows a new route and leg of the already loaded directions
+     * Follows a new route and leg of the already loaded directions.
      * Returns an initialized route state if no errors occurred
      * otherwise, it returns an invalid route state.
      *
@@ -128,12 +136,12 @@ interface MapboxNativeNavigator {
     // Free Drive
 
     /**
-     * Uses valhalla and local tile data to generate electronic horizon json
+     * Uses routing engine and local tile data to generate electronic horizon json.
      *
      * Consumes a list of points, matches them to the routing graph
-     * [i.e. does traceAttributes] and prolongs this path
+     * (i.e. does traceAttributes) and prolongs this path
      * in selected directions (one way, one way with branches, all ways)
-     * according to the provided eHorizon distance (the speed is derived from input points)
+     * according to the provided eHorizon distance (the speed is derived from input points).
      *
      * @param request the uri used when hitting the http service
      *
@@ -149,7 +157,7 @@ interface MapboxNativeNavigator {
     fun cacheLastRoute()
 
     /**
-     * Configures routers for getting routes offline
+     * Configures routers for getting routes offline.
      *
      * @param routerParams Optional [RouterParams] object which contains router configurations for
      * getting routes offline.
@@ -161,7 +169,7 @@ interface MapboxNativeNavigator {
     fun configureRouter(routerParams: RouterParams, httpClient: HttpInterface): Long
 
     /**
-     * Uses valhalla and local tile data to generate mapbox-directions-api-like json
+     * Uses valhalla and local tile data to generate mapbox-directions-api-like json.
      *
      * @param url the directions-based uri used when hitting the http service
      * @return a [RouterResult] object with the json and a success/fail bool
@@ -182,7 +190,7 @@ interface MapboxNativeNavigator {
      * Removes tiles wholly within the supplied bounding box. If the tile is not
      * contained completely within the bounding box it will remain in the cache.
      * After removing files from the cache any routers should be reconfigured
-     * to synchronize their in memory cache with the disk
+     * to synchronize their in memory cache with the disk.
      *
      * @param tilePath The path to the tiles.
      * @param southwest The lower left coord of the bbox.
@@ -196,7 +204,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Gets the history of state changing calls to the navigator this can be used to
-     * replay a sequence of events for the purpose of bug fixing
+     * replay a sequence of events for the purpose of bug fixing.
      *
      * @return a json representing the series of events that happened since the last time
      * history was toggled on
@@ -205,7 +213,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Toggles the recording of history on or off.
-     * Toggling will reset all history call [getHistory] first before toggling to retain a copy
+     * Toggling will reset all history call [getHistory] first before toggling to retain a copy.
      *
      * @param isEnabled set this to true to turn on history recording and false to turn it off
      */
@@ -229,7 +237,7 @@ interface MapboxNativeNavigator {
     fun getConfig(): NavigatorConfig
 
     /**
-     * Updates the configuration used for navigation. Passing null resets the config
+     * Updates the configuration used for navigation. Passing null resets the config.
      *
      * @param config the new [NavigatorConfig]
      */
@@ -239,7 +247,7 @@ interface MapboxNativeNavigator {
 
     /**
      * Gets the voice instruction at a specific step index in the route. If there is no
-     * voice instruction at the specified index, we won't return anything.
+     * voice instruction at the specified index, *null* is returned.
      *
      * @param index Which step you want to get [VoiceInstruction] for
      *
