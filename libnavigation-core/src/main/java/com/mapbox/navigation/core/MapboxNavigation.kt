@@ -484,7 +484,7 @@ constructor(
     private fun reRoute() {
         ifNonNull(
             directionsSession.getRouteOptions(),
-            tripSession.getEnhancedLocation()
+            tripSession.getRawLocation()
         ) { options, location ->
             val optionsRebuilt = buildAdjustedRouteOptions(options, location)
             directionsSession.requestRoutes(

@@ -4,7 +4,6 @@ import android.net.Uri
 import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.geojson.Point
 import com.mapbox.navigation.base.route.internal.RouteUrl
-import com.mapbox.navigation.base.typedef.METRIC
 import java.net.URLDecoder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -33,10 +32,7 @@ class RouteUrlTest {
         )
 
         assertNotNull(routeUrl.path)
-        assertTrue(
-            routeUrl.path?.contains("/12.2,43.4;54.0,90.01;32.9,81.23;42.00210201,13.123121")
-                ?: false
-        )
+        routeUrl.checkContain("/12.2,43.4;54.0,90.01;32.9,81.23;42.00210201,13.123121")
     }
 
     @Test
@@ -69,7 +65,7 @@ class RouteUrlTest {
             continueStraight = false,
             exclude = DirectionsCriteria.EXCLUDE_MOTORWAY,
             language = "en",
-            bearings = "0.1;1.2;",
+            bearings = "20.0;45.0;50.0;90.0",
             waypointNames = "One;Two;Three",
             waypointIndices = "0;2",
             waypointTargets = "0.1212,2.02",
@@ -92,7 +88,7 @@ class RouteUrlTest {
                 "continue_straight" to "false",
                 "exclude" to DirectionsCriteria.EXCLUDE_MOTORWAY,
                 "language" to "en",
-                "bearings" to "0.1;1.2;",
+                "bearings" to "20.0;45.0;50.0;90.0",
                 "waypoint_names" to "One;Two;Three",
                 "waypoint_targets" to "0.1212,2.02",
                 "waypoints" to "0;2",
@@ -118,9 +114,9 @@ class RouteUrlTest {
 
     private fun setupRouteUrl(
         accessToken: String = "",
-        origin: Point = Point.fromLngLat(.0, .0),
+        origin: Point = Point.fromLngLat(1.25, 1.14),
         waypoints: List<Point>? = null,
-        destination: Point = Point.fromLngLat(.0, .0),
+        destination: Point = Point.fromLngLat(2.22, 3.12),
         user: String = RouteUrl.PROFILE_DEFAULT_USER,
         profile: String = RouteUrl.PROFILE_DRIVING,
         steps: Boolean = true,
