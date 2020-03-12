@@ -7,7 +7,6 @@ import com.mapbox.geojson.Point
 import com.mapbox.navigation.base.extensions.ifNonNull
 import com.mapbox.navigation.base.route.Router
 import com.mapbox.navigation.base.trip.model.RouteProgress
-import com.mapbox.navigation.core.MapboxNavigation
 import java.util.concurrent.CopyOnWriteArrayList
 
 // todo make internal
@@ -102,7 +101,6 @@ class MapboxDirectionsSession(
 
         return optionsBuilder.build()
     }
-
 
     override fun requestFasterRoute(
         adjustedRouteOptions: RouteOptions,

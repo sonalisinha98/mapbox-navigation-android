@@ -48,10 +48,10 @@ import com.mapbox.navigation.utils.network.NetworkStatusService
 import com.mapbox.navigation.utils.thread.JobControl
 import com.mapbox.navigation.utils.thread.ThreadController
 import com.mapbox.navigation.utils.thread.monitorChannelWithException
-import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.File
 import java.lang.reflect.Field
 import java.net.URI
+import kotlinx.coroutines.channels.ReceiveChannel
 
 private const val MAPBOX_NAVIGATION_USER_AGENT_BASE = "mapbox-navigation-android"
 private const val MAPBOX_NAVIGATION_UI_USER_AGENT_BASE = "mapbox-navigation-ui-android"
