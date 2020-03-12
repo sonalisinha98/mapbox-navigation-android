@@ -91,7 +91,6 @@ class NavigationViewActivity : AppCompatActivity(), OnNavigationReadyCallback, N
                 this.navigationMapboxMap = navMapboxMap
                 this.navigationMapboxMap.updateLocationLayerRenderMode(RenderMode.NORMAL)
                 this.mapboxMap = navMapboxMap.retrieveMap()
-                // this.mapboxMap.addOnMapLongClickListener(this@NavigationViewActivity)
                 navigationView.retrieveMapboxNavigation()?.let { this.mapboxNavigation = it }
 
                 val directionsRoute = getDirectionsRoute()
@@ -100,7 +99,6 @@ class NavigationViewActivity : AppCompatActivity(), OnNavigationReadyCallback, N
                 optionsBuilder.directionsRoute(directionsRoute)
                 optionsBuilder.shouldSimulateRoute(true)
                 optionsBuilder.bannerInstructionsListener(this)
-                // extractConfiguration(options)
                 optionsBuilder.navigationOptions(NavigationOptions.Builder().build())
                 navigationView.startNavigation(optionsBuilder.build())
             }
@@ -110,36 +108,6 @@ class NavigationViewActivity : AppCompatActivity(), OnNavigationReadyCallback, N
     override fun willDisplay(instructions: BannerInstructions?): BannerInstructions {
         return instructions!!
     }
-
-//    override fun onMapLongClick(point: LatLng): Boolean {
-//        mapboxMap.locationComponent.lastKnownLocation?.let {
-//            origin = Point.fromLngLat(point.longitude, point.latitude)
-//        }
-//        if (!::destination.isInitialized) {
-//            destination = Point.fromLngLat(point.longitude, point.latitude)
-//            navigationView.addMarker(destination)
-//            //navigationView.showRoutes(origin, destination)
-//
-//            // next section temporary until I figure out
-//            // where the initial route is going to come from that's
-//            // needed for NavigationViewOptions
-//
-//            mapboxNavigation.requestRoutes(
-//                    RouteOptions.builder().applyDefaultParams()
-//                            .accessToken(Utils.getMapboxAccessToken(applicationContext))
-//                            .coordinates(origin, null, destination)
-//                            .alternatives(true)
-//                            .profile(DirectionsCriteria.PROFILE_DRIVING_TRAFFIC)
-//                            .build(),
-//                            routesReqCallback
-//            )
-//
-//            // end temporary section
-//
-//            return true
-//        }
-//        return false
-//    }
 
     override fun onNavigationRunning() {
     // todo
