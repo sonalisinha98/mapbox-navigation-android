@@ -3,6 +3,7 @@ package com.mapbox.services.android.navigation.v5.navigation
 import android.content.Context
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
+import androidx.annotation.NonNull
 import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.api.directions.v5.MapboxDirections
 import com.mapbox.api.directions.v5.models.DirectionsResponse
@@ -665,10 +666,6 @@ internal constructor(
                 directionsBuilder.profile(options.profile())
             }
 
-            if (options.alternatives() != null) {
-                directionsBuilder.alternatives(options.alternatives())
-            }
-
             if (!TextUtils.isEmpty(options.voiceUnits())) {
                 directionsBuilder.voiceUnits(options.voiceUnits())
             }
@@ -704,6 +701,20 @@ internal constructor(
             val walkingOptions = options.walkingOptions()
             if (walkingOptions != null) {
                 directionsBuilder.walkingOptions(walkingOptions)
+            }
+
+            if (options.continueStraight() != null) {
+                directionsBuilder.continueStraight(options.continueStraight())
+            }
+
+            if (!TextUtils.isEmpty(options.exclude())) {
+                directionsBuilder.exclude(options.exclude())
+            }
+
+            val radiuses = options.radiuses() ?: ""
+            if (radiuses.isNotEmpty()) {
+                val splitRadiuses = parseRadiuses(radiuses)
+                directionsBuilder.radiuses(splitRadiuses)
             }
 
             return this
@@ -763,6 +774,10 @@ internal constructor(
             }
             return waypoints
         }
+
+        @NonNull
+        private fun parseRadiuses(radiuses: String): List<Double> =
+            radiuses.split(SEMICOLON.toRegex()).dropLastWhile { it.isEmpty() }.map { it.toDouble() }
 
         private fun assembleWaypoints() {
             origin?.let { origin ->
