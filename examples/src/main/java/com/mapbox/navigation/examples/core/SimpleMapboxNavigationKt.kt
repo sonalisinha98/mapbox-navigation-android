@@ -65,6 +65,7 @@ import java.net.URI
 import java.util.Collections
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlinx.android.synthetic.main.activity_trip_service.mapView
 import kotlinx.android.synthetic.main.bottom_sheet_faster_route.*
 import kotlinx.android.synthetic.main.content_simple_mapbox_navigation.*
@@ -138,6 +139,7 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
         val newOptions =
             options.toBuilder()
                 .onboardRouterConfig(onboardRouterConfig)
+                .fasterRouteDetectorInterval(TimeUnit.MINUTES.toMillis(1))
                 .build()
 
         mapboxNavigation = getMapboxNavigation(newOptions)

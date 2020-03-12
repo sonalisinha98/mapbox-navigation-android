@@ -11,6 +11,7 @@ import com.mapbox.navigation.core.trip.service.MapboxTripService
 import com.mapbox.navigation.core.trip.service.TripService
 import com.mapbox.navigation.core.trip.session.MapboxTripSession
 import com.mapbox.navigation.core.trip.session.TripSession
+import com.mapbox.navigation.utils.timer.MapboxTimer
 
 internal object NavigationComponentProvider {
     fun createDirectionsSession(
@@ -35,4 +36,9 @@ internal object NavigationComponentProvider {
         locationEngineRequest,
         navigatorPollingDelay
     )
+
+    fun createMapboxTimer(
+        restartAfter: Long,
+        delayLambda: () -> Unit
+    ) = MapboxTimer(restartAfter, delayLambda)
 }
