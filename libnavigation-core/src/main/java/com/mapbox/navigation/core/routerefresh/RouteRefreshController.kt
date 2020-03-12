@@ -4,9 +4,12 @@ import android.util.Log
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.navigation.base.trip.model.RouteProgress
 import com.mapbox.navigation.core.trip.session.TripSession
+import com.mapbox.navigation.utils.thread.ThreadController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -14,12 +17,14 @@ internal class RouteRefreshController(
     private val tripSession: TripSession,
     private val routeRefreshApi: RouteRefreshApi
 ) {
-    var accessToken: String = ""
-    var intervalSeconds: Long = TimeUnit.MINUTES.toMillis(1)
+    private val jobControl = ThreadController.getMainScopeAndRootJob()
 
-    fun refreshRoute(scope: CoroutineScope, function: (RouteRefresh) -> Unit): Job {
-        return scope.launch {
-            while (true) {
+    var accessToken: String = ""
+    var intervalSeconds: Long = TimeUnit.SECONDS.toMillis(30)
+
+    fun refreshRoute(function: (RouteRefresh) -> Unit): Job {
+        return jobControl.scope.launch {
+            while (isActive) {
                 delay(TimeUnit.SECONDS.toMillis(intervalSeconds))
 
                 val routeRefreshRequest = buildRequest()
@@ -32,6 +37,10 @@ internal class RouteRefreshController(
                 }
             }
         }
+    }
+
+    fun stop() {
+        jobControl.job.cancelChildren()
     }
 
     private fun buildRequest(): RouteRefreshRequest? {

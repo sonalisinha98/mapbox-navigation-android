@@ -2,6 +2,7 @@ package com.mapbox.navigation.core.routerefresh
 
 import android.util.Log
 import com.mapbox.api.directions.v5.models.DirectionsRoute
+import com.mapbox.api.directions.v5.models.LegAnnotation
 import com.mapbox.api.directionsrefresh.v1.MapboxDirectionsRefresh
 import com.mapbox.api.directionsrefresh.v1.models.DirectionsRefreshResponse
 import retrofit2.Call
@@ -58,12 +59,37 @@ class RouteRefreshApi {
             for (i in currentLegIndex until legs.size) {
                 routeAnnotations.legs()?.let { annotationHolderRouteLegsList ->
                     val updatedAnnotation = annotationHolderRouteLegsList[i - currentLegIndex].annotation()
-                    Log.i("location_debug", "updatedAnnotation[$i]=${updatedAnnotation?.toJson()}")
-                    legs[i] = legs[i].toBuilder().annotation(updatedAnnotation).build()
+                    val transformedAnnotation = transformedAnnotation(updatedAnnotation)
+                    legs[i] = legs[i].toBuilder().annotation(transformedAnnotation).build()
                 }
             }
             legs.toList()
         }
         return originalRoute.toBuilder().legs(refreshedRouteLegs).build()
+    }
+
+    var counter = 0
+
+    private fun transformedAnnotation(updatedAnnotation: LegAnnotation?): LegAnnotation? {
+        val transformed: (String) -> String = if (counter++ % 2 == 0) {
+             { value ->
+                when (value) {
+                    "low" -> "moderate"
+                    "moderate" -> "heavy"
+                    "heavy" -> "heavy"
+                    else -> "heavy"
+                }
+            }
+        } else {
+            { value ->
+                when (value) {
+                    "moderate" -> "low"
+                    "heavy" -> "moderate"
+                    else -> "low"
+                }
+            }
+        }
+        val transformedCongestion = updatedAnnotation?.congestion()?.map(transformed)
+        return updatedAnnotation?.toBuilder()?.congestion(transformedCongestion)?.build()
     }
 }

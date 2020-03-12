@@ -1,7 +1,6 @@
 package com.mapbox.navigation.route.offboard
 
 import android.content.Context
-import android.util.Log
 import com.mapbox.annotation.navigation.module.MapboxNavigationModule
 import com.mapbox.annotation.navigation.module.MapboxNavigationModuleType
 import com.mapbox.api.directions.v5.DirectionsCriteria
@@ -49,7 +48,6 @@ class MapboxOffboardRouter(
                 call: Call<DirectionsResponse>,
                 response: Response<DirectionsResponse>
             ) {
-                Log.i("location_debug", "request directions ${call.request().url()}")
                 val routes = response.body()?.routes()
                 when {
                     call.isCanceled -> callback.onCanceled()

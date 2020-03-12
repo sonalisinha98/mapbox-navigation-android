@@ -62,6 +62,7 @@ import com.mapbox.navigation.ui.voice.VoiceInstructionLoader
 import java.io.File
 import java.lang.ref.WeakReference
 import java.net.URI
+import java.util.Collections
 import java.util.Date
 import java.util.Locale
 import kotlinx.android.synthetic.main.activity_trip_service.mapView
@@ -275,6 +276,7 @@ class SimpleMapboxNavigationKt : AppCompatActivity(), OnMapReadyCallback,
         override fun onRouteProgressChanged(routeProgress: RouteProgress) {
             Timber.d("route progress %s", routeProgress.toString())
             updatePuck(routeProgress)
+            navigationMapboxMap.drawRoutes(Collections.singletonList(routeProgress.route()))
         }
     }
 

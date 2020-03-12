@@ -50,7 +50,7 @@ class RouteRefreshControllerTest {
         every { tripSession.route } returns mockRoute
         coEvery { routeRefreshApi.refresh(any()) } returns mockRoute
 
-        val job = routeRefreshController.refreshRoute(coroutineRule.coroutineScope) { }
+        val job = routeRefreshController.refreshRoute { }
         coroutineRule.testDispatcher.advanceTimeBy(10000)
         job.cancelAndJoin()
 
@@ -67,7 +67,7 @@ class RouteRefreshControllerTest {
         every { tripSession.route } returns mockRoute
         coEvery { routeRefreshApi.refresh(any()) } returns mockRoute
 
-        val job = routeRefreshController.refreshRoute(coroutineRule.coroutineScope) { }
+        val job = routeRefreshController.refreshRoute { }
         coroutineRule.testDispatcher.advanceTimeBy(10000)
         job.cancelAndJoin()
 
@@ -88,7 +88,7 @@ class RouteRefreshControllerTest {
         // Set the interval to 10 and let 25 seconds pass by
         // Expect 3 total calls (1 at 1 second, 2 at 10 seconds)
         routeRefreshController.intervalSeconds = 1
-        val job = routeRefreshController.refreshRoute(coroutineRule.coroutineScope) { }
+        val job = routeRefreshController.refreshRoute { }
         coroutineRule.testDispatcher.advanceTimeBy(1100)
         routeRefreshController.intervalSeconds = 10
         coroutineRule.testDispatcher.advanceTimeBy(20100)
@@ -108,7 +108,7 @@ class RouteRefreshControllerTest {
         val requests = mutableListOf<RouteRefreshRequest>()
         coEvery { routeRefreshApi.refresh(capture(requests)) } returns mockRoute
 
-        val job = routeRefreshController.refreshRoute(coroutineRule.coroutineScope) { }
+        val job = routeRefreshController.refreshRoute { }
         coroutineRule.testDispatcher.advanceTimeBy(10000)
         job.cancelAndJoin()
 
@@ -127,7 +127,7 @@ class RouteRefreshControllerTest {
         every { tripSession.route } returns mockRoute
         coEvery { routeRefreshApi.refresh(any()) } throws RuntimeException("Test exception")
 
-        val job = routeRefreshController.refreshRoute(coroutineRule.coroutineScope) { }
+        val job = routeRefreshController.refreshRoute { }
         coroutineRule.testDispatcher.advanceTimeBy(10000)
         job.cancelAndJoin()
     }
